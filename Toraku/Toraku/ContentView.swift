@@ -87,26 +87,41 @@ struct ContentView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            .layoutPriority(1)
 
             Spacer()
 
-            DatePicker(
-                "Event Start",
-                selection: $model.eventStartDate,
-                displayedComponents: [.hourAndMinute]
-            )
-            .labelsHidden()
-            .datePickerStyle(.compact)
-            .frame(width: 120)
+            HStack(spacing: 14) {
+                HStack(spacing: 8) {
+                    Text("Start")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .fixedSize()
 
-            Button {
-                model.isImporting = true
-            } label: {
-                Label("Load Schedule", systemImage: "square.and.arrow.down")
+                    DatePicker(
+                        "Start",
+                        selection: $model.eventStartDate,
+                        displayedComponents: [.hourAndMinute]
+                    )
+                    .labelsHidden()
+                    .datePickerStyle(.compact)
+                    .frame(width: 108)
+                }
+                .frame(width: 150, alignment: .trailing)
+                .fixedSize()
+
+                Button {
+                    model.isImporting = true
+                } label: {
+                    Label("Load Schedule", systemImage: "square.and.arrow.down")
+                }
+                .fixedSize()
             }
+            .frame(height: 40, alignment: .center)
         }
         .padding(.horizontal, 24)
-        .padding(.vertical, 14)
+        .frame(height: 80, alignment: .center)
     }
 
     private var progressFooter: some View {
