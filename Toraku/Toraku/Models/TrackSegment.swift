@@ -1,0 +1,41 @@
+import Foundation
+
+struct TrackSegment: Codable, Identifiable, Equatable {
+    let id: UUID
+    let title: String
+    let speaker: String?
+    let durationMinutes: Int
+    let type: SegmentType
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        speaker: String? = nil,
+        durationMinutes: Int,
+        type: SegmentType
+    ) {
+        self.id = id
+        self.title = title
+        self.speaker = speaker
+        self.durationMinutes = durationMinutes
+        self.type = type
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case speaker
+        case durationMinutes
+        case type
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        title = try container.decode(String.self, forKey: .title)
+        speaker = try container.decodeIfPresent(String.self, forKey: .speaker)
+        durationMinutes = try container.decode(Int.self, forKey: .durationMinutes)
+        type = try container.decode(SegmentType.self, forKey: .type)
+    }
+}

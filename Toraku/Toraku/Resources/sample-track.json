@@ -1,0 +1,28 @@
+[
+  {
+    "title": "Opening Remarks",
+    "durationMinutes": 5,
+    "type": "intro"
+  },
+  {
+    "title": "Scaling SwiftUI at Acme",
+    "speaker": "Jane Doe",
+    "durationMinutes": 25,
+    "type": "talk"
+  },
+  {
+    "title": "Q&A",
+    "durationMinutes": 5,
+    "type": "qa"
+  },
+  {
+    "title": "Break",
+    "durationMinutes": 15,
+    "type": "break"
+  },
+  {
+    "title": "Closing Notes",
+    "durationMinutes": 5,
+    "type": "outro"
+  }
+]
