@@ -11,7 +11,6 @@ struct WindowConfigurator: NSViewRepresentable {
 
             let size = NSSize(width: 1280, height: 720)
             window.minSize = NSSize(width: 1024, height: 576)
-            window.contentAspectRatio = NSSize(width: 16, height: 9)
 
             if window.frame.width < size.width || window.frame.height < size.height {
                 window.setContentSize(size)
@@ -23,8 +22,5 @@ struct WindowConfigurator: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
-            nsView.window?.contentAspectRatio = NSSize(width: 16, height: 9)
-        }
     }
 }

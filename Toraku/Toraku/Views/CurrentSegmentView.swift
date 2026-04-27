@@ -5,6 +5,23 @@ struct CurrentSegmentView: View {
 
     var body: some View {
         VStack(spacing: 16) {
+            switch model.eventPhase {
+            case .noSchedule:
+                emptyState
+            case .beforeStart(let remaining):
+                countdownState(remaining: remaining)
+            case .running:
+                runningState
+            case .ended(let elapsed):
+                endedState(elapsed: elapsed)
+            }
+        }
+        .frame(maxWidth: 760)
+        .animation(.smooth(duration: 0.2), value: model.currentSegment?.id)
+    }
+
+    private var runningState: some View {
+        Group {
             if let currentSegment = model.currentSegment {
                 Label(currentSegment.segment.type.label.uppercased(), systemImage: currentSegment.segment.type.systemImage)
                     .font(.caption.weight(.bold))
@@ -44,15 +61,67 @@ struct CurrentSegmentView: View {
                         .foregroundStyle(.secondary)
                 }
             } else {
-                ContentUnavailableView(
-                    "No Schedule",
-                    systemImage: "calendar.badge.exclamationmark",
-                    description: Text("Load a JSON schedule to start tracking.")
-                )
+                emptyState
             }
         }
-        .frame(maxWidth: 760)
-        .animation(.smooth(duration: 0.2), value: model.currentSegment?.id)
+    }
+
+    private func countdownState(remaining: TimeInterval) -> some View {
+        VStack(spacing: 16) {
+            Label("STARTING SOON", systemImage: "timer")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.tint)
+                .labelStyle(.titleAndIcon)
+
+            Text("Event starts in")
+                .font(.title2.weight(.semibold))
+
+            Text(DurationFormatting.clock(remaining))
+                .font(.system(size: 88, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.tint)
+                .contentTransition(.numericText())
+                .accessibilityLabel("\(DurationFormatting.clock(remaining)) until event starts")
+
+            if let firstSegment = model.timeline.first {
+                Text("First: \(firstSegment.segment.title) - \(DurationFormatting.minutes(firstSegment.duration))")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+        }
+    }
+
+    private func endedState(elapsed: TimeInterval) -> some View {
+        VStack(spacing: 16) {
+            Label("EVENT ENDED", systemImage: "checkmark.circle.fill")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.secondary)
+                .labelStyle(.titleAndIcon)
+
+            Text("Ended")
+                .font(.title2.weight(.semibold))
+
+            Text(DurationFormatting.clock(elapsed))
+                .font(.system(size: 88, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .contentTransition(.numericText())
+                .accessibilityLabel("\(DurationFormatting.clock(elapsed)) since event ended")
+
+            Text("Total duration: \(DurationFormatting.clock(model.totalDuration))")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var emptyState: some View {
+        ContentUnavailableView(
+            "No Schedule",
+            systemImage: "calendar.badge.exclamationmark",
+            description: Text("Load a JSON schedule to start tracking.")
+        )
     }
 
     private var timerColor: Color {

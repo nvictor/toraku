@@ -3,39 +3,44 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var model = TrackTimerViewModel()
+    @State private var isInspectorPresented = false
 
     var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
-                header
+        NavigationSplitView {
+            TimelineView(model: model)
+                .padding(.leading, 28)
+                .padding(.trailing, 22)
+                .padding(.vertical, 10)
+                .navigationTitle("Timeline")
+                .navigationSplitViewColumnWidth(min: 320, ideal: 380, max: 440)
+        } detail: {
+            VStack(spacing: 24) {
+                Spacer(minLength: 12)
 
-                Divider()
+                CurrentSegmentView(model: model)
+                    .frame(maxWidth: 720)
 
-                HStack(spacing: 0) {
-                    TimelineView(model: model)
-                        .frame(width: timelineWidth(for: geometry.size.width))
-                        .padding(.leading, 28)
-                        .padding(.trailing, 22)
-                        .padding(.vertical, 10)
-                        .clipped()
+                ControlsView(model: model)
 
-                    Divider()
+                progressFooter
 
-                    VStack(spacing: 24) {
-                        Spacer(minLength: 12)
-
-                        CurrentSegmentView(model: model)
-                            .frame(maxWidth: 720)
-
-                        ControlsView(model: model)
-
-                        progressFooter
-
-                        Spacer(minLength: 12)
+                Spacer(minLength: 12)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal, 40)
+            .navigationTitle("Toraku")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        isInspectorPresented.toggle()
+                    } label: {
+                        Label("Settings", systemImage: "slider.horizontal.3")
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.horizontal, detailHorizontalPadding(for: geometry.size.width))
+                    .help(isInspectorPresented ? "Hide inspector" : "Show inspector")
                 }
+            }
+            .inspector(isPresented: $isInspectorPresented) {
+                inspector
             }
         }
         .frame(minWidth: 1024, minHeight: 576)
@@ -74,54 +79,47 @@ struct ContentView: View {
         }
     }
 
-    private var header: some View {
-        HStack(spacing: 14) {
-            Image(systemName: "rectangle.stack.badge.play")
-                .font(.title2)
-                .foregroundStyle(.tint)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Toraku")
-                    .font(.headline)
-                Text("\(model.timeline.count) segments - \(DurationFormatting.clock(model.totalDuration))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .layoutPriority(1)
-
-            Spacer()
-
-            HStack(spacing: 14) {
-                HStack(spacing: 8) {
-                    Text("Start")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .fixedSize()
-
-                    DatePicker(
-                        "Start",
-                        selection: $model.eventStartDate,
-                        displayedComponents: [.hourAndMinute]
-                    )
-                    .labelsHidden()
-                    .datePickerStyle(.compact)
-                    .frame(width: 108)
+    private var inspector: some View {
+        Form {
+            Section("Schedule") {
+                LabeledContent("Segments") {
+                    Text("\(model.timeline.count)")
+                        .monospacedDigit()
                 }
-                .frame(width: 150, alignment: .trailing)
-                .fixedSize()
+
+                LabeledContent("Duration") {
+                    Text(DurationFormatting.clock(model.totalDuration))
+                        .monospacedDigit()
+                }
 
                 Button {
                     model.isImporting = true
                 } label: {
                     Label("Load Schedule", systemImage: "square.and.arrow.down")
                 }
-                .fixedSize()
             }
-            .frame(height: 40, alignment: .center)
+
+            Section("Start") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Start Time")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+
+                    DatePicker(
+                        "Start Time",
+                        selection: $model.eventStartDate,
+                        displayedComponents: [.hourAndMinute]
+                    )
+                    .labelsHidden()
+                    .datePickerStyle(.compact)
+                    .fixedSize()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
-        .padding(.horizontal, 24)
-        .frame(height: 80, alignment: .center)
+        .formStyle(.grouped)
+        .padding(.vertical, 10)
+        .inspectorColumnWidth(min: 320, ideal: 340, max: 420)
     }
 
     private var progressFooter: some View {
@@ -140,13 +138,5 @@ struct ContentView: View {
             .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: 640)
-    }
-
-    private func timelineWidth(for windowWidth: CGFloat) -> CGFloat {
-        min(max(windowWidth * 0.34, 320), 440)
-    }
-
-    private func detailHorizontalPadding(for windowWidth: CGFloat) -> CGFloat {
-        windowWidth < 1120 ? 24 : 40
     }
 }

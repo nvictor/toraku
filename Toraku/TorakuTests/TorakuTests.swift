@@ -194,4 +194,43 @@ final class TorakuTests: XCTestCase {
         XCTAssertEqual(model.elapsed, 21 * 60, accuracy: 0.001)
         XCTAssertEqual(model.currentSegment?.segment.title, "B")
     }
+
+    func testFutureStartShowsCountdownAndCanBeSkipped() throws {
+        let currentDate = Date(timeIntervalSinceReferenceDate: 10 * 60 * 60)
+        let model = TrackTimerViewModel(loadSample: false, startTimer: false) {
+            currentDate
+        }
+        try model.replaceSchedule(with: [
+            TrackSegment(title: "A", durationMinutes: 20, type: .intro)
+        ])
+
+        model.eventStartDate = currentDate.addingTimeInterval(5 * 60)
+
+        XCTAssertEqual(model.eventPhase, .beforeStart(5 * 60))
+        XCTAssertEqual(model.elapsed, -5 * 60, accuracy: 0.001)
+
+        model.skip()
+
+        XCTAssertEqual(model.eventPhase, .running)
+        XCTAssertEqual(model.playbackState, .playing)
+        XCTAssertEqual(model.elapsed, 0, accuracy: 0.001)
+    }
+
+    func testEventEndedPhaseCountsPastTotalDuration() throws {
+        var currentDate = Date(timeIntervalSinceReferenceDate: 10 * 60 * 60)
+        let model = TrackTimerViewModel(loadSample: false, startTimer: false) {
+            currentDate
+        }
+        try model.replaceSchedule(with: [
+            TrackSegment(title: "A", durationMinutes: 20, type: .intro)
+        ])
+
+        model.eventStartDate = currentDate.addingTimeInterval(-20 * 60)
+        model.play()
+        currentDate = currentDate.addingTimeInterval(90)
+
+        XCTAssertEqual(model.eventPhase, .ended(90))
+        XCTAssertEqual(model.clampedElapsed, model.totalDuration, accuracy: 0.001)
+        XCTAssertEqual(model.totalRemaining, 0, accuracy: 0.001)
+    }
 }

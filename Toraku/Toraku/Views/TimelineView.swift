@@ -31,6 +31,15 @@ struct TimelineView: View {
     }
 
     private func rowState(for index: Int) -> TimelineRow.State {
+        switch model.eventPhase {
+        case .noSchedule, .beforeStart:
+            return .upcoming
+        case .ended:
+            return .past
+        case .running:
+            break
+        }
+
         guard let currentIndex = model.currentIndex else {
             return .upcoming
         }

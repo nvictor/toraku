@@ -3,6 +3,13 @@ import Foundation
 
 @MainActor
 final class TrackTimerViewModel: ObservableObject {
+    enum EventPhase: Equatable {
+        case noSchedule
+        case beforeStart(TimeInterval)
+        case running
+        case ended(TimeInterval)
+    }
+
     @Published private(set) var segments: [TrackSegment] = []
     @Published private(set) var timeline: [ScheduledSegment] = []
     @Published private(set) var playbackState: PlaybackState = .stopped
@@ -48,6 +55,23 @@ final class TrackTimerViewModel: ObservableObject {
         case .paused, .stopped:
             return pausedElapsed
         }
+    }
+
+    var eventPhase: EventPhase {
+        guard totalDuration > 0 else {
+            return .noSchedule
+        }
+
+        let elapsed = elapsed
+        if elapsed < 0 {
+            return .beforeStart(abs(elapsed))
+        }
+
+        if elapsed >= totalDuration {
+            return .ended(elapsed - totalDuration)
+        }
+
+        return .running
     }
 
     var totalDuration: TimeInterval {
@@ -192,6 +216,15 @@ final class TrackTimerViewModel: ObservableObject {
             return
         }
 
+        if elapsed < 0 {
+            let currentDate = now()
+            eventStartDate = currentDate
+            pausedElapsed = 0
+            tickDate = currentDate
+            playbackState = .playing
+            return
+        }
+
         if let nextSegment {
             setElapsed(nextSegment.startOffset)
         } else {
@@ -243,7 +276,7 @@ final class TrackTimerViewModel: ObservableObject {
             return
         }
 
-        pausedElapsed = min(max(0, now().timeIntervalSince(eventStartDate)), totalDuration)
+        pausedElapsed = min(now().timeIntervalSince(eventStartDate), totalDuration)
     }
 
     private func startTimerLoop() {
