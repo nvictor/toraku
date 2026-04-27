@@ -14,6 +14,13 @@ struct ControlsView: View {
             .buttonStyle(.borderedProminent)
 
             Button {
+                model.skipBack()
+            } label: {
+                Label("Back", systemImage: "backward.end")
+            }
+            .keyboardShortcut(.leftArrow, modifiers: [])
+
+            Button {
                 model.skip()
             } label: {
                 Label("Skip", systemImage: "forward.end")

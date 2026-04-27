@@ -28,6 +28,7 @@ final class TrackTimerViewModel: ObservableObject {
     private var timerCancellable: AnyCancellable?
     private let now: () -> Date
     private let persistedScheduleURL: URL
+    private let skipBackBoundaryTolerance: TimeInterval = 0.5
 
     init(
         loadSample: Bool = true,
@@ -239,6 +240,32 @@ final class TrackTimerViewModel: ObservableObject {
             setElapsed(totalDuration)
             playbackState = .stopped
         }
+    }
+
+    func skipBack() {
+        guard !timeline.isEmpty, elapsed >= 0 else {
+            return
+        }
+
+        guard let currentSegment else {
+            setElapsed(0)
+            return
+        }
+
+        let secondsIntoSegment = elapsed - currentSegment.startOffset
+        if secondsIntoSegment > skipBackBoundaryTolerance {
+            setElapsed(currentSegment.startOffset)
+            return
+        }
+
+        guard let currentIndex = timeline.firstIndex(where: { $0.id == currentSegment.id }),
+              currentIndex > timeline.startIndex else {
+            setElapsed(0)
+            return
+        }
+
+        let previousSegment = timeline[timeline.index(before: currentIndex)]
+        setElapsed(previousSegment.startOffset)
     }
 
     func seek(to offset: TimeInterval) {

@@ -259,6 +259,59 @@ final class TorakuTests: XCTestCase {
         XCTAssertEqual(model.currentSegment?.segment.title, "B")
     }
 
+    func testSkipBackGoesToCurrentSegmentStartWhenSegmentHasBeenPlaying() throws {
+        let model = TrackTimerViewModel(loadSample: false, startTimer: false)
+        try model.replaceSchedule(with: [
+            TrackSegment(title: "A", durationMinutes: 5, type: .intro),
+            TrackSegment(title: "B", durationMinutes: 10, type: .talk),
+            TrackSegment(title: "C", durationMinutes: 2, type: .qa)
+        ])
+
+        model.seek(to: 8 * 60)
+        model.skipBack()
+
+        XCTAssertEqual(model.currentSegment?.segment.title, "B")
+        XCTAssertEqual(model.elapsed, 5 * 60, accuracy: 0.001)
+    }
+
+    func testSkipBackGoesToPreviousSegmentWhenAlreadyAtStart() throws {
+        let model = TrackTimerViewModel(loadSample: false, startTimer: false)
+        try model.replaceSchedule(with: [
+            TrackSegment(title: "A", durationMinutes: 5, type: .intro),
+            TrackSegment(title: "B", durationMinutes: 10, type: .talk),
+            TrackSegment(title: "C", durationMinutes: 2, type: .qa)
+        ])
+
+        model.seek(to: 5 * 60)
+        model.skipBack()
+
+        XCTAssertEqual(model.currentSegment?.segment.title, "A")
+        XCTAssertEqual(model.elapsed, 0, accuracy: 0.001)
+    }
+
+    func testSkipBackKeepsLiveTimerAnchoredToWallClock() throws {
+        var currentDate = Date(timeIntervalSinceReferenceDate: 10 * 60 * 60)
+        let model = TrackTimerViewModel(loadSample: false, startTimer: false) {
+            currentDate
+        }
+        try model.replaceSchedule(with: [
+            TrackSegment(title: "A", durationMinutes: 20, type: .intro),
+            TrackSegment(title: "B", durationMinutes: 10, type: .talk)
+        ])
+
+        model.eventStartDate = currentDate.addingTimeInterval(-25 * 60)
+        model.play()
+        model.skipBack()
+
+        XCTAssertEqual(model.currentSegment?.segment.title, "B")
+        XCTAssertEqual(model.elapsed, 20 * 60, accuracy: 0.001)
+
+        currentDate = currentDate.addingTimeInterval(60)
+
+        XCTAssertEqual(model.elapsed, 21 * 60, accuracy: 0.001)
+        XCTAssertEqual(model.currentSegment?.segment.title, "B")
+    }
+
     func testFutureStartShowsCountdownAndCanBeSkipped() throws {
         let currentDate = Date(timeIntervalSinceReferenceDate: 10 * 60 * 60)
         let model = TrackTimerViewModel(loadSample: false, startTimer: false) {
