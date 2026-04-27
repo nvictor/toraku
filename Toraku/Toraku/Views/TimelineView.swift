@@ -10,6 +10,7 @@ struct TimelineView: View {
                     ForEach(Array(model.timeline.enumerated()), id: \.element.id) { index, scheduledSegment in
                         TimelineRow(
                             scheduledSegment: scheduledSegment,
+                            eventStartDate: model.eventStartDate,
                             state: rowState(for: index)
                         )
                         .id(scheduledSegment.id)
@@ -64,6 +65,7 @@ private struct TimelineRow: View {
     }
 
     let scheduledSegment: ScheduledSegment
+    let eventStartDate: Date
     let state: State
 
     var body: some View {
@@ -95,6 +97,14 @@ private struct TimelineRow: View {
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
+
+                Text(DurationFormatting.timeRange(
+                    startDate: eventStartDate,
+                    startOffset: scheduledSegment.startOffset,
+                    endOffset: scheduledSegment.endOffset
+                ))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
 
                 Text(scheduledSegment.segment.title)
                     .font(titleFont)

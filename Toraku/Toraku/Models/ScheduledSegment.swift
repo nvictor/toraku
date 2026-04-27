@@ -10,7 +10,7 @@ struct ScheduledSegment: Identifiable, Equatable {
         endOffset - startOffset
     }
 
-    var durationMinutes: Int {
+    var durationMinutes: Double {
         segment.durationMinutes
     }
 }

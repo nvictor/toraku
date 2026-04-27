@@ -37,7 +37,7 @@ enum ScheduleLoader {
                 throw ScheduleError.blankTitle(index: index)
             }
 
-            if segment.durationMinutes <= 0 {
+            if !segment.durationMinutes.isFinite || segment.durationMinutes <= 0 {
                 throw ScheduleError.invalidDuration(title: segment.title)
             }
         }
@@ -49,7 +49,7 @@ enum ScheduleLoader {
         var currentOffset: TimeInterval = 0
 
         return segments.map { segment in
-            let duration = TimeInterval(segment.durationMinutes * 60)
+            let duration = segment.durationMinutes * 60
             let scheduled = ScheduledSegment(
                 id: segment.id,
                 segment: segment,

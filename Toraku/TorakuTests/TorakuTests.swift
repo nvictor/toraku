@@ -40,6 +40,25 @@ final class TorakuTests: XCTestCase {
         XCTAssertEqual(segments.first?.speaker, "Jane Doe")
     }
 
+    func testDecodesFractionalDurationMinutes() throws {
+        let data = Data(
+            """
+            [
+              { "title": "Lightning", "durationMinutes": 0.75, "type": "intro" },
+              { "title": "Short Talk", "durationMinutes": 1.25, "type": "talk" }
+            ]
+            """.utf8
+        )
+
+        let segments = try ScheduleLoader.decodeSchedule(from: data)
+        let timeline = try ScheduleLoader.buildTimeline(from: segments)
+
+        XCTAssertEqual(segments[0].durationMinutes, 0.75, accuracy: 0.001)
+        XCTAssertEqual(timeline[0].endOffset, 45, accuracy: 0.001)
+        XCTAssertEqual(timeline[1].startOffset, 45, accuracy: 0.001)
+        XCTAssertEqual(timeline[1].endOffset, 120, accuracy: 0.001)
+    }
+
     func testRejectsEmptySchedule() {
         XCTAssertThrowsError(try ScheduleLoader.decodeSchedule(from: Data("[]".utf8))) { error in
             XCTAssertEqual(error as? ScheduleError, .emptySchedule)
@@ -105,6 +124,51 @@ final class TorakuTests: XCTestCase {
         XCTAssertEqual(timeline[1].endOffset, 900)
         XCTAssertEqual(timeline[2].startOffset, 900)
         XCTAssertEqual(timeline[2].endOffset, 1020)
+    }
+
+    func testFormatsFractionalMinuteDurations() {
+        XCTAssertEqual(DurationFormatting.minutes(45), "45 sec")
+        XCTAssertEqual(DurationFormatting.minutes(75), "1 min 15 sec")
+        XCTAssertEqual(DurationFormatting.minutes(120), "2 min")
+    }
+
+    func testFormatsTimelineTimeRange() {
+        var calendar = Calendar(identifier: .gregorian)
+        let timeZone = TimeZone(secondsFromGMT: 0)!
+        calendar.timeZone = timeZone
+        let startDate = DateComponents(
+            calendar: calendar,
+            timeZone: timeZone,
+            year: 2026,
+            month: 4,
+            day: 27,
+            hour: 9,
+            minute: 30
+        ).date!
+
+        XCTAssertEqual(
+            DurationFormatting.timeRange(
+                startDate: startDate,
+                startOffset: 0,
+                endOffset: 300,
+                calendar: calendar,
+                locale: Locale(identifier: "en_US_POSIX"),
+                timeZone: timeZone
+            ),
+            "9:30 AM-9:35 AM"
+        )
+
+        XCTAssertEqual(
+            DurationFormatting.timeRange(
+                startDate: startDate,
+                startOffset: 45,
+                endOffset: 120,
+                calendar: calendar,
+                locale: Locale(identifier: "en_US_POSIX"),
+                timeZone: timeZone
+            ),
+            "9:30:45 AM-9:32:00 AM"
+        )
     }
 
     func testCurrentAndNextSegmentBoundaryLookup() throws {

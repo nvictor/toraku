@@ -4,14 +4,14 @@ struct TrackSegment: Codable, Identifiable, Equatable {
     let id: UUID
     let title: String
     let speaker: String?
-    let durationMinutes: Int
+    let durationMinutes: Double
     let type: SegmentType
 
     init(
         id: UUID = UUID(),
         title: String,
         speaker: String? = nil,
-        durationMinutes: Int,
+        durationMinutes: Double,
         type: SegmentType
     ) {
         self.id = id
@@ -35,7 +35,7 @@ struct TrackSegment: Codable, Identifiable, Equatable {
         id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         title = try container.decode(String.self, forKey: .title)
         speaker = try container.decodeIfPresent(String.self, forKey: .speaker)
-        durationMinutes = try container.decode(Int.self, forKey: .durationMinutes)
+        durationMinutes = try container.decode(Double.self, forKey: .durationMinutes)
         type = try container.decode(SegmentType.self, forKey: .type)
     }
 }
