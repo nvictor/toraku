@@ -27,9 +27,16 @@ final class TrackTimerViewModel: ObservableObject {
 
     private var timerCancellable: AnyCancellable?
     private let now: () -> Date
+    private let persistedScheduleURL: URL
 
-    init(loadSample: Bool = true, startTimer: Bool = true, now: @escaping () -> Date = Date.init) {
+    init(
+        loadSample: Bool = true,
+        startTimer: Bool = true,
+        persistedScheduleURL: URL? = nil,
+        now: @escaping () -> Date = Date.init
+    ) {
         self.now = now
+        self.persistedScheduleURL = persistedScheduleURL ?? Self.defaultPersistedScheduleURL()
         let initialDate = now()
         eventStartDate = initialDate
         tickDate = initialDate
@@ -39,7 +46,7 @@ final class TrackTimerViewModel: ObservableObject {
         }
 
         if loadSample {
-            loadSampleSchedule()
+            loadStartupSchedule()
         }
     }
 
@@ -156,6 +163,7 @@ final class TrackTimerViewModel: ObservableObject {
             let data = try Data(contentsOf: url)
             let loadedSegments = try ScheduleLoader.decodeSchedule(from: data)
             try replaceSchedule(with: loadedSegments)
+            try persistSchedule(loadedSegments)
         } catch let error as ScheduleError {
             scheduleError = error.localizedDescription
         } catch {
@@ -285,5 +293,48 @@ final class TrackTimerViewModel: ObservableObject {
             .sink { [weak self] date in
                 self?.tickDate = date
             }
+    }
+
+    private func loadStartupSchedule() {
+        do {
+            if let persistedSegments = try loadPersistedSchedule() {
+                try replaceSchedule(with: persistedSegments)
+            } else {
+                loadSampleSchedule()
+            }
+        } catch {
+            loadSampleSchedule()
+            scheduleError = "Could not load the saved schedule. \(error.localizedDescription)"
+        }
+    }
+
+    private func loadPersistedSchedule() throws -> [TrackSegment]? {
+        guard FileManager.default.fileExists(atPath: persistedScheduleURL.path) else {
+            return nil
+        }
+
+        let data = try Data(contentsOf: persistedScheduleURL)
+        return try ScheduleLoader.decodeSchedule(from: data)
+    }
+
+    private func persistSchedule(_ segments: [TrackSegment]) throws {
+        let directory = persistedScheduleURL.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(segments)
+        try data.write(to: persistedScheduleURL, options: .atomic)
+    }
+
+    private static func defaultPersistedScheduleURL() -> URL {
+        let applicationSupportURL = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        )[0]
+
+        return applicationSupportURL
+            .appendingPathComponent("Toraku", isDirectory: true)
+            .appendingPathComponent("Schedule.json")
     }
 }

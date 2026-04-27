@@ -233,4 +233,46 @@ final class TorakuTests: XCTestCase {
         XCTAssertEqual(model.clampedElapsed, model.totalDuration, accuracy: 0.001)
         XCTAssertEqual(model.totalRemaining, 0, accuracy: 0.001)
     }
+
+    func testImportedSchedulePersistsAndRestoresOnStartup() throws {
+        let persistenceURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+            .appendingPathComponent("Schedule.json")
+        let importURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("json")
+        defer {
+            try? FileManager.default.removeItem(at: persistenceURL.deletingLastPathComponent())
+            try? FileManager.default.removeItem(at: importURL)
+        }
+
+        let data = Data(
+            """
+            [
+              { "title": "Persisted", "durationMinutes": 7, "type": "intro" },
+              { "title": "Restored", "durationMinutes": 11, "type": "talk" }
+            ]
+            """.utf8
+        )
+        try data.write(to: importURL)
+
+        let importingModel = TrackTimerViewModel(
+            loadSample: false,
+            startTimer: false,
+            persistedScheduleURL: persistenceURL
+        )
+        importingModel.importSchedule(from: importURL)
+
+        XCTAssertEqual(importingModel.segments.map(\.title), ["Persisted", "Restored"])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: persistenceURL.path))
+
+        let restoringModel = TrackTimerViewModel(
+            loadSample: true,
+            startTimer: false,
+            persistedScheduleURL: persistenceURL
+        )
+
+        XCTAssertEqual(restoringModel.segments.map(\.title), ["Persisted", "Restored"])
+        XCTAssertNil(restoringModel.scheduleError)
+    }
 }
