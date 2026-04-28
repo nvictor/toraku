@@ -16,6 +16,16 @@ final class TrackTimerViewModel: ObservableObject {
     @Published private(set) var pausedElapsed: TimeInterval = 0
     @Published private(set) var scheduleError: String?
     @Published var isImporting = false
+    @Published var isRehearsalMode = false {
+        didSet {
+            if isRehearsalMode {
+                pausedElapsed = min(max(0, pausedElapsed), totalDuration)
+            } else {
+                refreshPausedElapsedFromEventStart()
+            }
+            tickDate = now()
+        }
+    }
     @Published var eventStartDate: Date {
         didSet {
             refreshPausedElapsedFromEventStart()
@@ -58,6 +68,9 @@ final class TrackTimerViewModel: ObservableObject {
     var elapsed: TimeInterval {
         switch playbackState {
         case .playing:
+            _ = tickDate
+            return now().timeIntervalSince(eventStartDate)
+        case .stopped where !isRehearsalMode && pausedElapsed < 0:
             _ = tickDate
             return now().timeIntervalSince(eventStartDate)
         case .paused, .stopped:
@@ -195,7 +208,11 @@ final class TrackTimerViewModel: ObservableObject {
         }
 
         if playbackState == .stopped {
-            pausedElapsed = now().timeIntervalSince(eventStartDate)
+            if isRehearsalMode {
+                eventStartDate = now().addingTimeInterval(-pausedElapsed)
+            } else {
+                pausedElapsed = now().timeIntervalSince(eventStartDate)
+            }
         }
 
         tickDate = now()
@@ -237,8 +254,9 @@ final class TrackTimerViewModel: ObservableObject {
         if let nextSegment {
             setElapsed(nextSegment.startOffset)
         } else {
+            let wasPlaying = playbackState == .playing
             setElapsed(totalDuration)
-            playbackState = .stopped
+            playbackState = wasPlaying ? .playing : .stopped
         }
     }
 
@@ -307,7 +325,7 @@ final class TrackTimerViewModel: ObservableObject {
     }
 
     private func refreshPausedElapsedFromEventStart() {
-        guard playbackState != .playing else {
+        guard playbackState != .playing, !isRehearsalMode else {
             return
         }
 
