@@ -53,13 +53,6 @@ struct CurrentSegmentView: View {
                     .contentTransition(.numericText())
                     .accessibilityLabel(timerAccessibilityLabel)
 
-                if let nextSegment = model.nextSegment {
-                    Text("Up next: \(nextSegment.segment.title) - \(DurationFormatting.minutes(nextSegment.duration))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                }
             } else {
                 emptyState
             }
@@ -82,13 +75,6 @@ struct CurrentSegmentView: View {
                 .contentTransition(.numericText())
                 .accessibilityLabel("\(DurationFormatting.clock(remaining)) until event starts")
 
-            if let firstSegment = model.timeline.first {
-                Text("First: \(firstSegment.segment.title) - \(DurationFormatting.minutes(firstSegment.duration))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
         }
     }
 
