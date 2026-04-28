@@ -4,30 +4,30 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @StateObject private var model = TrackTimerViewModel()
     @State private var isInspectorPresented = false
+    @State private var columnVisibility: NavigationSplitViewVisibility = .detailOnly
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             TimelineView(model: model)
-                .padding(.leading, 28)
-                .padding(.trailing, 22)
-                .padding(.vertical, 10)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
                 .navigationTitle("Timeline")
-                .navigationSplitViewColumnWidth(min: 320, ideal: 380, max: 440)
+                .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 340)
         } detail: {
-            VStack(spacing: 24) {
-                Spacer(minLength: 12)
+            VStack(spacing: 18) {
+                Spacer(minLength: 8)
 
                 CurrentSegmentView(model: model)
-                    .frame(maxWidth: 720)
 
                 ControlsView(model: model)
 
                 progressFooter
 
-                Spacer(minLength: 12)
+                Spacer(minLength: 8)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.horizontal, 40)
+            .frame(maxWidth: 420, maxHeight: .infinity)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 18)
             .navigationTitle("Toraku")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -43,7 +43,7 @@ struct ContentView: View {
                 inspector
             }
         }
-        .frame(minWidth: 1024, minHeight: 576)
+        .frame(minWidth: 360, idealWidth: 420, minHeight: 560, idealHeight: 720)
         .background(WindowConfigurator())
         .fileImporter(
             isPresented: $model.isImporting,

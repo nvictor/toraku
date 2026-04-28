@@ -9,13 +9,7 @@ struct WindowConfigurator: NSViewRepresentable {
                 return
             }
 
-            let size = NSSize(width: 1280, height: 720)
-            window.minSize = NSSize(width: 1024, height: 576)
-
-            if window.frame.width < size.width || window.frame.height < size.height {
-                window.setContentSize(size)
-                window.center()
-            }
+            window.minSize = NSSize(width: 360, height: 560)
         }
 
         return view

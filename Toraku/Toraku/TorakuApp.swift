@@ -15,7 +15,7 @@ struct TorakuApp: App {
         WindowGroup {
             ContentView()
         }
-        .defaultSize(width: 1280, height: 720)
+        .defaultSize(width: 420, height: 720)
         .commands {
             CheckForUpdatesCommands(updater: updater)
         }

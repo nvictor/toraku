@@ -4,7 +4,7 @@ struct CurrentSegmentView: View {
     @ObservedObject var model: TrackTimerViewModel
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             switch model.eventPhase {
             case .noSchedule:
                 emptyState
@@ -16,7 +16,7 @@ struct CurrentSegmentView: View {
                 endedState(elapsed: elapsed)
             }
         }
-        .frame(maxWidth: 760)
+        .frame(maxWidth: .infinity)
         .animation(.smooth(duration: 0.2), value: model.currentSegment?.id)
     }
 
@@ -30,35 +30,35 @@ struct CurrentSegmentView: View {
 
                 VStack(spacing: 6) {
                     Text(currentSegment.segment.title)
-                        .font(.system(size: 36, weight: .semibold, design: .rounded))
+                        .font(.system(size: 28, weight: .semibold, design: .rounded))
                         .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.65)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.7)
 
                     if let speaker = currentSegment.segment.speaker, !speaker.isEmpty {
                         Text(speaker)
-                            .font(.title3.weight(.medium))
+                            .font(.headline.weight(.medium))
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                     }
                 }
 
                 Text(DurationFormatting.clock(model.remainingInCurrentSegment))
-                    .font(.system(size: 88, weight: .bold, design: .rounded))
+                    .font(.system(size: 76, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(timerColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
                     .contentTransition(.numericText())
                     .accessibilityLabel(timerAccessibilityLabel)
 
                 if let nextSegment = model.nextSegment {
                     Text("Up next: \(nextSegment.segment.title) - \(DurationFormatting.minutes(nextSegment.duration))")
-                        .font(.headline)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
-                } else {
-                    Text("Final segment")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
                 }
             } else {
                 emptyState
@@ -67,25 +67,24 @@ struct CurrentSegmentView: View {
     }
 
     private func countdownState(remaining: TimeInterval) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             Label("STARTING SOON", systemImage: "timer")
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.tint)
                 .labelStyle(.titleAndIcon)
 
-            Text("Event starts in")
-                .font(.title2.weight(.semibold))
-
             Text(DurationFormatting.clock(remaining))
-                .font(.system(size: 88, weight: .bold, design: .rounded))
+                .font(.system(size: 76, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(.tint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)
                 .contentTransition(.numericText())
                 .accessibilityLabel("\(DurationFormatting.clock(remaining)) until event starts")
 
             if let firstSegment = model.timeline.first {
                 Text("First: \(firstSegment.segment.title) - \(DurationFormatting.minutes(firstSegment.duration))")
-                    .font(.headline)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
@@ -94,24 +93,23 @@ struct CurrentSegmentView: View {
     }
 
     private func endedState(elapsed: TimeInterval) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             Label("EVENT ENDED", systemImage: "checkmark.circle.fill")
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.secondary)
                 .labelStyle(.titleAndIcon)
 
-            Text("Ended")
-                .font(.title2.weight(.semibold))
-
             Text(DurationFormatting.clock(elapsed))
-                .font(.system(size: 88, weight: .bold, design: .rounded))
+                .font(.system(size: 76, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)
                 .contentTransition(.numericText())
                 .accessibilityLabel("\(DurationFormatting.clock(elapsed)) since event ended")
 
             Text("Total duration: \(DurationFormatting.clock(model.totalDuration))")
-                .font(.headline)
+                .font(.caption)
                 .foregroundStyle(.secondary)
         }
     }

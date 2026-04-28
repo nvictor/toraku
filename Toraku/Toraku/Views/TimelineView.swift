@@ -6,7 +6,7 @@ struct TimelineView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
+                LazyVStack(alignment: .leading, spacing: 2) {
                     ForEach(Array(model.timeline.enumerated()), id: \.element.id) { index, scheduledSegment in
                         TimelineRow(
                             scheduledSegment: scheduledSegment,
@@ -16,7 +16,7 @@ struct TimelineView: View {
                         .id(scheduledSegment.id)
                     }
                 }
-                .padding(.vertical, 10)
+                .padding(.vertical, 6)
             }
             .scrollIndicators(.hidden)
             .onChange(of: model.currentSegment?.id) { _, id in
@@ -69,69 +69,59 @@ private struct TimelineRow: View {
     let state: State
 
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            VStack(spacing: 0) {
-                Rectangle()
-                    .fill(lineColor)
-                    .frame(width: 2, height: 22)
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: markerImage)
+                .font(.system(size: state == .current ? 15 : 11, weight: .semibold))
+                .foregroundStyle(markerColor)
+                .frame(width: 18, height: 20)
 
-                Image(systemName: markerImage)
-                    .font(.system(size: state == .current ? 17 : 13, weight: .bold))
-                    .foregroundStyle(markerColor)
-                    .frame(width: 30, height: 30)
-
-                Rectangle()
-                    .fill(lineColor)
-                    .frame(width: 2)
-            }
-            .frame(width: 34)
-
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
-                    Label(scheduledSegment.segment.type.label, systemImage: scheduledSegment.segment.type.systemImage)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(scheduledSegment.segment.type.tint)
-                        .labelStyle(.titleAndIcon)
-
-                    Text(DurationFormatting.minutes(scheduledSegment.duration))
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-
-                Text(DurationFormatting.timeRange(
-                    startDate: eventStartDate,
-                    startOffset: scheduledSegment.startOffset,
-                    endOffset: scheduledSegment.endOffset
-                ))
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-
+            VStack(alignment: .leading, spacing: 4) {
                 Text(scheduledSegment.segment.title)
                     .font(titleFont)
                     .lineLimit(state == .current ? 2 : 1)
+                    .minimumScaleFactor(0.8)
+
+                HStack(spacing: 6) {
+                    Image(systemName: scheduledSegment.segment.type.systemImage)
+                        .foregroundStyle(scheduledSegment.segment.type.tint)
+
+                    Text(DurationFormatting.timeRange(
+                        startDate: eventStartDate,
+                        startOffset: scheduledSegment.startOffset,
+                        endOffset: scheduledSegment.endOffset
+                    ))
+                    .monospacedDigit()
+
+                    Text(DurationFormatting.minutes(scheduledSegment.duration))
+                        .monospacedDigit()
+                }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
                     .minimumScaleFactor(0.75)
 
                 if let speaker = scheduledSegment.segment.speaker, !speaker.isEmpty {
                     Text(speaker)
-                        .font(state == .current ? .headline : .subheadline)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
             }
-            .padding(.vertical, state == .current ? 18 : 12)
+            .padding(.vertical, state == .current ? 8 : 6)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(.horizontal, 6)
         .opacity(opacity)
-        .scaleEffect(state == .current ? 1 : 0.96, anchor: .leading)
         .animation(.smooth(duration: 0.2), value: state)
     }
 
     private var titleFont: Font {
         switch state {
         case .current:
-            .title2.weight(.semibold)
+            .headline.weight(.semibold)
         case .past, .upcoming:
-            .headline
+            .subheadline
         }
     }
 
@@ -166,9 +156,5 @@ private struct TimelineRow: View {
         case .upcoming:
             .secondary
         }
-    }
-
-    private var lineColor: Color {
-        state == .current ? scheduledSegment.segment.type.tint.opacity(0.55) : Color.secondary.opacity(0.2)
     }
 }

@@ -4,7 +4,7 @@ struct ControlsView: View {
     @ObservedObject var model: TrackTimerViewModel
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Button {
                 model.playPause()
             } label: {
@@ -12,6 +12,8 @@ struct ControlsView: View {
             }
             .keyboardShortcut(.space, modifiers: [])
             .buttonStyle(.borderedProminent)
+            .labelStyle(.titleAndIcon)
+            .frame(minWidth: 92)
 
             Button {
                 model.skipBack()
@@ -19,6 +21,8 @@ struct ControlsView: View {
                 Label("Back", systemImage: "backward.end")
             }
             .keyboardShortcut(.leftArrow, modifiers: [])
+            .labelStyle(.iconOnly)
+            .help("Back")
 
             Button {
                 model.skip()
@@ -26,6 +30,8 @@ struct ControlsView: View {
                 Label("Skip", systemImage: "forward.end")
             }
             .keyboardShortcut(.rightArrow, modifiers: [])
+            .labelStyle(.iconOnly)
+            .help("Skip")
 
             Button(role: .destructive) {
                 model.reset()
@@ -33,9 +39,10 @@ struct ControlsView: View {
                 Label("Reset", systemImage: "arrow.counterclockwise")
             }
             .keyboardShortcut("r", modifiers: [])
+            .labelStyle(.iconOnly)
+            .help("Reset")
         }
         .controlSize(.large)
-        .labelStyle(.titleAndIcon)
     }
 
     private var playPauseTitle: String {
