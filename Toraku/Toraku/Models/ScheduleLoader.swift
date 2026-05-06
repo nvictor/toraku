@@ -3,6 +3,7 @@ import Foundation
 enum ScheduleLoader {
     static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
+        decoder.allowsJSON5 = true
         return decoder
     }()
 

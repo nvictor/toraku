@@ -95,10 +95,6 @@ struct ContentView: View {
             }
 
             Section("Start") {
-                Toggle(isOn: $model.isRehearsalMode) {
-                    Label("Rehearse Mode", systemImage: "figure.walk")
-                }
-
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Start Time")
                         .font(.caption.weight(.semibold))
@@ -112,7 +108,6 @@ struct ContentView: View {
                     .labelsHidden()
                     .datePickerStyle(.compact)
                     .fixedSize()
-                    .disabled(model.isRehearsalMode)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }

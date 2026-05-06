@@ -16,16 +16,6 @@ final class TrackTimerViewModel: ObservableObject {
     @Published private(set) var pausedElapsed: TimeInterval = 0
     @Published private(set) var scheduleError: String?
     @Published var isImporting = false
-    @Published var isRehearsalMode = false {
-        didSet {
-            if isRehearsalMode {
-                pausedElapsed = min(max(0, pausedElapsed), totalDuration)
-            } else {
-                refreshPausedElapsedFromEventStart()
-            }
-            tickDate = now()
-        }
-    }
     @Published var eventStartDate: Date {
         didSet {
             refreshPausedElapsedFromEventStart()
@@ -38,7 +28,6 @@ final class TrackTimerViewModel: ObservableObject {
     private var timerCancellable: AnyCancellable?
     private let now: () -> Date
     private let persistedScheduleURL: URL
-    private let skipBackBoundaryTolerance: TimeInterval = 0.5
 
     init(
         loadSample: Bool = true,
@@ -70,7 +59,7 @@ final class TrackTimerViewModel: ObservableObject {
         case .playing:
             _ = tickDate
             return now().timeIntervalSince(eventStartDate)
-        case .stopped where !isRehearsalMode && pausedElapsed < 0:
+        case .stopped where pausedElapsed < 0:
             _ = tickDate
             return now().timeIntervalSince(eventStartDate)
         case .paused, .stopped:
@@ -190,7 +179,7 @@ final class TrackTimerViewModel: ObservableObject {
         self.segments = segments
         timeline = builtTimeline
         scheduleError = nil
-        reset()
+        resetForNewSchedule()
     }
 
     func playPause() {
@@ -208,11 +197,7 @@ final class TrackTimerViewModel: ObservableObject {
         }
 
         if playbackState == .stopped {
-            if isRehearsalMode {
-                eventStartDate = now().addingTimeInterval(-pausedElapsed)
-            } else {
-                pausedElapsed = now().timeIntervalSince(eventStartDate)
-            }
+            pausedElapsed = now().timeIntervalSince(eventStartDate)
         }
 
         tickDate = now()
@@ -226,64 +211,6 @@ final class TrackTimerViewModel: ObservableObject {
 
         pausedElapsed = elapsed
         playbackState = .paused
-    }
-
-    func reset() {
-        let currentDate = now()
-        pausedElapsed = 0
-        playbackState = .stopped
-        eventStartDate = currentDate
-        pausedElapsed = 0
-        tickDate = currentDate
-    }
-
-    func skip() {
-        guard !timeline.isEmpty else {
-            return
-        }
-
-        if elapsed < 0 {
-            let currentDate = now()
-            eventStartDate = currentDate
-            pausedElapsed = 0
-            tickDate = currentDate
-            playbackState = .playing
-            return
-        }
-
-        if let nextSegment {
-            setElapsed(nextSegment.startOffset)
-        } else {
-            let wasPlaying = playbackState == .playing
-            setElapsed(totalDuration)
-            playbackState = wasPlaying ? .playing : .stopped
-        }
-    }
-
-    func skipBack() {
-        guard !timeline.isEmpty, elapsed >= 0 else {
-            return
-        }
-
-        guard let currentSegment else {
-            setElapsed(0)
-            return
-        }
-
-        let secondsIntoSegment = elapsed - currentSegment.startOffset
-        if secondsIntoSegment > skipBackBoundaryTolerance {
-            setElapsed(currentSegment.startOffset)
-            return
-        }
-
-        guard let currentIndex = timeline.firstIndex(where: { $0.id == currentSegment.id }),
-              currentIndex > timeline.startIndex else {
-            setElapsed(0)
-            return
-        }
-
-        let previousSegment = timeline[timeline.index(before: currentIndex)]
-        setElapsed(previousSegment.startOffset)
     }
 
     func seek(to offset: TimeInterval) {
@@ -314,6 +241,15 @@ final class TrackTimerViewModel: ObservableObject {
         return timeline.first { offset >= $0.startOffset && offset < $0.endOffset }
     }
 
+    private func resetForNewSchedule() {
+        let currentDate = now()
+        pausedElapsed = 0
+        playbackState = .stopped
+        eventStartDate = currentDate
+        pausedElapsed = 0
+        tickDate = currentDate
+    }
+
     private func setElapsed(_ offset: TimeInterval) {
         pausedElapsed = min(max(0, offset), totalDuration)
 
@@ -325,7 +261,7 @@ final class TrackTimerViewModel: ObservableObject {
     }
 
     private func refreshPausedElapsedFromEventStart() {
-        guard playbackState != .playing, !isRehearsalMode else {
+        guard playbackState != .playing else {
             return
         }
 

@@ -59,6 +59,41 @@ final class TorakuTests: XCTestCase {
         XCTAssertEqual(timeline[1].endOffset, 120, accuracy: 0.001)
     }
 
+    func testDecodesScheduleWithCommentedOutSegment() throws {
+        let data = Data(
+            """
+            [
+              { "title": "Welcome", "durationMinutes": 5, "type": "intro" },
+              // {
+              //   "title": "Commented Out",
+              //   "durationMinutes": 10,
+              //   "type": "talk"
+              // },
+              { "title": "Q&A", "durationMinutes": 5, "type": "qa" }
+            ]
+            """.utf8
+        )
+
+        let segments = try ScheduleLoader.decodeSchedule(from: data)
+
+        XCTAssertEqual(segments.map(\.title), ["Welcome", "Q&A"])
+    }
+
+    func testDecodesScheduleWithCommentedOutFinalSegmentAndTrailingComma() throws {
+        let data = Data(
+            """
+            [
+              { "title": "Welcome", "durationMinutes": 5, "type": "intro" },
+              // { "title": "Skipped", "durationMinutes": 10, "type": "talk" },
+            ]
+            """.utf8
+        )
+
+        let segments = try ScheduleLoader.decodeSchedule(from: data)
+
+        XCTAssertEqual(segments.map(\.title), ["Welcome"])
+    }
+
     func testRejectsEmptySchedule() {
         XCTAssertThrowsError(try ScheduleLoader.decodeSchedule(from: Data("[]".utf8))) { error in
             XCTAssertEqual(error as? ScheduleError, .emptySchedule)
@@ -204,14 +239,6 @@ final class TorakuTests: XCTestCase {
 
         model.play()
         XCTAssertEqual(model.playbackState, .playing)
-
-        model.skip()
-        XCTAssertEqual(model.currentSegment?.segment.title, "B")
-
-        model.reset()
-        XCTAssertEqual(model.playbackState, .stopped)
-        XCTAssertEqual(model.elapsed, 0)
-        XCTAssertEqual(model.currentSegment?.segment.title, "A")
     }
 
     func testElapsedUsesEventStartTimeInsteadOfPlayTime() throws {
@@ -236,83 +263,7 @@ final class TorakuTests: XCTestCase {
         XCTAssertEqual(model.elapsed, 20 * 60, accuracy: 0.001)
     }
 
-    func testSkipKeepsLiveTimerAnchoredToWallClock() throws {
-        var currentDate = Date(timeIntervalSinceReferenceDate: 10 * 60 * 60)
-        let model = TrackTimerViewModel(loadSample: false, startTimer: false) {
-            currentDate
-        }
-        try model.replaceSchedule(with: [
-            TrackSegment(title: "A", durationMinutes: 20, type: .intro),
-            TrackSegment(title: "B", durationMinutes: 10, type: .talk)
-        ])
-
-        model.eventStartDate = currentDate.addingTimeInterval(-15 * 60)
-        model.play()
-        model.skip()
-
-        XCTAssertEqual(model.currentSegment?.segment.title, "B")
-        XCTAssertEqual(model.elapsed, 20 * 60, accuracy: 0.001)
-
-        currentDate = currentDate.addingTimeInterval(60)
-
-        XCTAssertEqual(model.elapsed, 21 * 60, accuracy: 0.001)
-        XCTAssertEqual(model.currentSegment?.segment.title, "B")
-    }
-
-    func testSkipBackGoesToCurrentSegmentStartWhenSegmentHasBeenPlaying() throws {
-        let model = TrackTimerViewModel(loadSample: false, startTimer: false)
-        try model.replaceSchedule(with: [
-            TrackSegment(title: "A", durationMinutes: 5, type: .intro),
-            TrackSegment(title: "B", durationMinutes: 10, type: .talk),
-            TrackSegment(title: "C", durationMinutes: 2, type: .qa)
-        ])
-
-        model.seek(to: 8 * 60)
-        model.skipBack()
-
-        XCTAssertEqual(model.currentSegment?.segment.title, "B")
-        XCTAssertEqual(model.elapsed, 5 * 60, accuracy: 0.001)
-    }
-
-    func testSkipBackGoesToPreviousSegmentWhenAlreadyAtStart() throws {
-        let model = TrackTimerViewModel(loadSample: false, startTimer: false)
-        try model.replaceSchedule(with: [
-            TrackSegment(title: "A", durationMinutes: 5, type: .intro),
-            TrackSegment(title: "B", durationMinutes: 10, type: .talk),
-            TrackSegment(title: "C", durationMinutes: 2, type: .qa)
-        ])
-
-        model.seek(to: 5 * 60)
-        model.skipBack()
-
-        XCTAssertEqual(model.currentSegment?.segment.title, "A")
-        XCTAssertEqual(model.elapsed, 0, accuracy: 0.001)
-    }
-
-    func testSkipBackKeepsLiveTimerAnchoredToWallClock() throws {
-        var currentDate = Date(timeIntervalSinceReferenceDate: 10 * 60 * 60)
-        let model = TrackTimerViewModel(loadSample: false, startTimer: false) {
-            currentDate
-        }
-        try model.replaceSchedule(with: [
-            TrackSegment(title: "A", durationMinutes: 20, type: .intro),
-            TrackSegment(title: "B", durationMinutes: 10, type: .talk)
-        ])
-
-        model.eventStartDate = currentDate.addingTimeInterval(-25 * 60)
-        model.play()
-        model.skipBack()
-
-        XCTAssertEqual(model.currentSegment?.segment.title, "B")
-        XCTAssertEqual(model.elapsed, 20 * 60, accuracy: 0.001)
-
-        currentDate = currentDate.addingTimeInterval(60)
-
-        XCTAssertEqual(model.elapsed, 21 * 60, accuracy: 0.001)
-        XCTAssertEqual(model.currentSegment?.segment.title, "B")
-    }
-
-    func testFutureStartShowsCountdownAndCanBeSkipped() throws {
+    func testFutureStartShowsCountdown() throws {
         let currentDate = Date(timeIntervalSinceReferenceDate: 10 * 60 * 60)
         let model = TrackTimerViewModel(loadSample: false, startTimer: false) {
             currentDate
@@ -325,12 +276,6 @@ final class TorakuTests: XCTestCase {
 
         XCTAssertEqual(model.eventPhase, .beforeStart(5 * 60))
         XCTAssertEqual(model.elapsed, -5 * 60, accuracy: 0.001)
-
-        model.skip()
-
-        XCTAssertEqual(model.eventPhase, .running)
-        XCTAssertEqual(model.playbackState, .playing)
-        XCTAssertEqual(model.elapsed, 0, accuracy: 0.001)
     }
 
     func testFutureStartAdvancesThroughRunningAndEndedWhileStopped() throws {
@@ -356,35 +301,6 @@ final class TorakuTests: XCTestCase {
         XCTAssertEqual(model.eventPhase, .ended(15))
     }
 
-    func testRehearsalModeIgnoresFutureStartUntilPlayed() throws {
-        var currentDate = Date(timeIntervalSinceReferenceDate: 10 * 60 * 60)
-        let model = TrackTimerViewModel(loadSample: false, startTimer: false) {
-            currentDate
-        }
-        try model.replaceSchedule(with: [
-            TrackSegment(title: "A", durationMinutes: 1, type: .intro)
-        ])
-
-        model.eventStartDate = currentDate.addingTimeInterval(30)
-
-        XCTAssertEqual(model.eventPhase, .beforeStart(30))
-
-        model.isRehearsalMode = true
-
-        XCTAssertEqual(model.eventPhase, .running)
-        XCTAssertEqual(model.elapsed, 0, accuracy: 0.001)
-        XCTAssertEqual(model.currentSegment?.segment.title, "A")
-
-        currentDate = currentDate.addingTimeInterval(10)
-
-        XCTAssertEqual(model.elapsed, 0, accuracy: 0.001)
-
-        model.play()
-        currentDate = currentDate.addingTimeInterval(10)
-
-        XCTAssertEqual(model.elapsed, 10, accuracy: 0.001)
-    }
-
     func testEventEndedPhaseCountsPastTotalDuration() throws {
         var currentDate = Date(timeIntervalSinceReferenceDate: 10 * 60 * 60)
         let model = TrackTimerViewModel(loadSample: false, startTimer: false) {
@@ -401,26 +317,6 @@ final class TorakuTests: XCTestCase {
         XCTAssertEqual(model.eventPhase, .ended(90))
         XCTAssertEqual(model.clampedElapsed, model.totalDuration, accuracy: 0.001)
         XCTAssertEqual(model.totalRemaining, 0, accuracy: 0.001)
-    }
-
-    func testSkippingFinalLiveSegmentKeepsEndedCountUpLive() throws {
-        var currentDate = Date(timeIntervalSinceReferenceDate: 10 * 60 * 60)
-        let model = TrackTimerViewModel(loadSample: false, startTimer: false) {
-            currentDate
-        }
-        try model.replaceSchedule(with: [
-            TrackSegment(title: "A", durationMinutes: 1, type: .intro)
-        ])
-
-        model.play()
-        model.skip()
-
-        XCTAssertEqual(model.eventPhase, .ended(0))
-        XCTAssertEqual(model.playbackState, .playing)
-
-        currentDate = currentDate.addingTimeInterval(10)
-
-        XCTAssertEqual(model.eventPhase, .ended(10))
     }
 
     func testImportedSchedulePersistsAndRestoresOnStartup() throws {

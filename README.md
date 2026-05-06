@@ -8,6 +8,8 @@ Simple time tracking for events
 
 Toraku loads event schedules from a simple JSON array. Each segment has a title,
 duration in minutes, and type. Speaker is optional.
+Schedules may include `//` comments, which is handy for temporarily commenting
+out segments.
 
 ```json
 [
