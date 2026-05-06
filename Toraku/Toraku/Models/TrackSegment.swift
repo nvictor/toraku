@@ -6,19 +6,22 @@ struct TrackSegment: Codable, Identifiable, Equatable {
     let speaker: String?
     let durationMinutes: Double
     let type: SegmentType
+    let music: String?
 
     init(
         id: UUID = UUID(),
         title: String,
         speaker: String? = nil,
         durationMinutes: Double,
-        type: SegmentType
+        type: SegmentType,
+        music: String? = nil
     ) {
         self.id = id
         self.title = title
         self.speaker = speaker
         self.durationMinutes = durationMinutes
         self.type = type
+        self.music = music
     }
 
     enum CodingKeys: String, CodingKey {
@@ -27,6 +30,7 @@ struct TrackSegment: Codable, Identifiable, Equatable {
         case speaker
         case durationMinutes
         case type
+        case music
     }
 
     init(from decoder: Decoder) throws {
@@ -37,5 +41,6 @@ struct TrackSegment: Codable, Identifiable, Equatable {
         speaker = try container.decodeIfPresent(String.self, forKey: .speaker)
         durationMinutes = try container.decode(Double.self, forKey: .durationMinutes)
         type = try container.decode(SegmentType.self, forKey: .type)
+        music = try container.decodeIfPresent(String.self, forKey: .music)
     }
 }

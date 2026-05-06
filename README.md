@@ -7,7 +7,7 @@ Simple time tracking for events
 ## Example Event
 
 Toraku loads event schedules from a simple JSON array. Each segment has a title,
-duration in minutes, and type. Speaker is optional.
+duration in minutes, and type. Speaker and music are optional.
 Schedules may include `//` comments, which is handy for temporarily commenting
 out segments.
 
@@ -32,7 +32,8 @@ out segments.
   {
     "title": "Break",
     "durationMinutes": 15,
-    "type": "break"
+    "type": "break",
+    "music": "audio/break.mp3"
   },
   {
     "title": "Closing Notes",
@@ -45,3 +46,7 @@ out segments.
 Set the event start time in the header. The timer follows the scheduled event
 clock, so if an event starts at 10:00 and you press Play at 10:15, Toraku shows
 15 minutes already elapsed.
+
+When a segment has a `music` path, Toraku plays that MP3 with a 2-second fade in
+and fade out. Relative music paths are resolved from the loaded schedule file's
+folder.

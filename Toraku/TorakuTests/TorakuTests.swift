@@ -40,6 +40,41 @@ final class TorakuTests: XCTestCase {
         XCTAssertEqual(segments.first?.speaker, "Jane Doe")
     }
 
+    func testDecodesOptionalMusic() throws {
+        let data = Data(
+            """
+            [
+              {
+                "title": "Break",
+                "durationMinutes": 10,
+                "type": "break",
+                "music": "audio/break.mp3"
+              }
+            ]
+            """.utf8
+        )
+
+        let segments = try ScheduleLoader.decodeSchedule(from: data)
+
+        XCTAssertEqual(segments.first?.music, "audio/break.mp3")
+    }
+
+    func testEncodesOptionalMusicForPersistence() throws {
+        let segments = [
+            TrackSegment(
+                title: "Break",
+                durationMinutes: 10,
+                type: .breakTime,
+                music: "audio/break.mp3"
+            )
+        ]
+
+        let data = try JSONEncoder().encode(segments)
+        let decodedSegments = try ScheduleLoader.decodeSchedule(from: data)
+
+        XCTAssertEqual(decodedSegments.first?.music, "audio/break.mp3")
+    }
+
     func testDecodesFractionalDurationMinutes() throws {
         let data = Data(
             """
@@ -241,6 +276,101 @@ final class TorakuTests: XCTestCase {
         XCTAssertEqual(model.playbackState, .playing)
     }
 
+    func testResolvesRelativeMusicPathFromImportedScheduleDirectory() throws {
+        let persistenceURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+            .appendingPathComponent("Schedule.json")
+        let importDirectoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let importURL = importDirectoryURL.appendingPathComponent("track.json")
+        defer {
+            try? FileManager.default.removeItem(at: persistenceURL.deletingLastPathComponent())
+            try? FileManager.default.removeItem(at: importDirectoryURL)
+        }
+
+        try FileManager.default.createDirectory(at: importDirectoryURL, withIntermediateDirectories: true)
+        try Data(
+            """
+            [
+              { "title": "Break", "durationMinutes": 10, "type": "break", "music": "audio/break.mp3" }
+            ]
+            """.utf8
+        ).write(to: importURL)
+
+        let model = TrackTimerViewModel(
+            loadSample: false,
+            startTimer: false,
+            persistedScheduleURL: persistenceURL
+        )
+        model.importSchedule(from: importURL)
+
+        XCTAssertEqual(
+            model.resolvedMusicURL(for: "audio/break.mp3")?.standardizedFileURL,
+            importDirectoryURL.appendingPathComponent("audio/break.mp3").standardizedFileURL
+        )
+    }
+
+    func testStartsMusicForCurrentSegmentWithMusic() throws {
+        let musicController = MockSegmentMusicController()
+        let model = TrackTimerViewModel(loadSample: false, startTimer: false, musicController: musicController)
+        try model.replaceSchedule(with: [
+            TrackSegment(title: "A", durationMinutes: 1, type: .intro, music: "/tmp/a.mp3")
+        ])
+
+        model.play()
+
+        XCTAssertEqual(musicController.playCalls.count, 1)
+        XCTAssertEqual(musicController.playCalls.first?.url.path, "/tmp/a.mp3")
+        XCTAssertEqual(musicController.playCalls.first?.fadeInDuration, 2)
+        XCTAssertEqual(musicController.playCalls.first?.fadeOutDuration, 2)
+        XCTAssertEqual(musicController.playCalls.first?.maximumPlaybackDuration ?? 0, 60, accuracy: 0.001)
+    }
+
+    func testDoesNotStartMusicForSegmentWithoutMusic() throws {
+        let musicController = MockSegmentMusicController()
+        let model = TrackTimerViewModel(loadSample: false, startTimer: false, musicController: musicController)
+        try model.replaceSchedule(with: [
+            TrackSegment(title: "A", durationMinutes: 1, type: .intro)
+        ])
+
+        model.play()
+
+        XCTAssertTrue(musicController.playCalls.isEmpty)
+    }
+
+    func testStopsMusicWhenSeekingToSegmentWithoutMusic() throws {
+        let musicController = MockSegmentMusicController()
+        let model = TrackTimerViewModel(loadSample: false, startTimer: false, musicController: musicController)
+        try model.replaceSchedule(with: [
+            TrackSegment(title: "A", durationMinutes: 1, type: .intro, music: "/tmp/a.mp3"),
+            TrackSegment(title: "B", durationMinutes: 1, type: .talk)
+        ])
+
+        model.play()
+        model.seek(to: 61)
+
+        XCTAssertEqual(musicController.playCalls.count, 1)
+        XCTAssertTrue(musicController.stopCalls.contains(2))
+    }
+
+    func testMusicMuteStopsAndPreventsPlaybackUntilUnmuted() throws {
+        let musicController = MockSegmentMusicController()
+        let model = TrackTimerViewModel(loadSample: false, startTimer: false, musicController: musicController)
+        try model.replaceSchedule(with: [
+            TrackSegment(title: "A", durationMinutes: 1, type: .intro, music: "/tmp/a.mp3")
+        ])
+
+        model.toggleMusicMuted()
+        model.play()
+
+        XCTAssertTrue(musicController.playCalls.isEmpty)
+
+        model.toggleMusicMuted()
+
+        XCTAssertEqual(musicController.playCalls.count, 1)
+        XCTAssertFalse(model.isMusicMuted)
+    }
+
     func testElapsedUsesEventStartTimeInsteadOfPlayTime() throws {
         var currentDate = Date(timeIntervalSinceReferenceDate: 10 * 60 * 60)
         let model = TrackTimerViewModel(loadSample: false, startTimer: false) {
@@ -359,5 +489,37 @@ final class TorakuTests: XCTestCase {
 
         XCTAssertEqual(restoringModel.segments.map(\.title), ["Persisted", "Restored"])
         XCTAssertNil(restoringModel.scheduleError)
+    }
+}
+
+nonisolated private final class MockSegmentMusicController: SegmentMusicControlling {
+    struct PlayCall {
+        let url: URL
+        let fadeInDuration: TimeInterval
+        let fadeOutDuration: TimeInterval
+        let maximumPlaybackDuration: TimeInterval
+    }
+
+    private(set) var playCalls: [PlayCall] = []
+    private(set) var stopCalls: [TimeInterval] = []
+
+    func play(
+        url: URL,
+        fadeInDuration: TimeInterval,
+        fadeOutDuration: TimeInterval,
+        maximumPlaybackDuration: TimeInterval
+    ) throws {
+        playCalls.append(
+            PlayCall(
+                url: url,
+                fadeInDuration: fadeInDuration,
+                fadeOutDuration: fadeOutDuration,
+                maximumPlaybackDuration: maximumPlaybackDuration
+            )
+        )
+    }
+
+    func stop(fadeOutDuration: TimeInterval) {
+        stopCalls.append(fadeOutDuration)
     }
 }
