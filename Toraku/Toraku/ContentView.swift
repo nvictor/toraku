@@ -55,6 +55,21 @@ struct ContentView: View {
                 model.showError(error.localizedDescription)
             }
         }
+        .fileImporter(
+            isPresented: $model.isChoosingMusicFolder,
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else {
+                    return
+                }
+                model.grantMusicFolderAccess(from: url)
+            case .failure(let error):
+                model.showError(error.localizedDescription)
+            }
+        }
         .alert(
             "Schedule Error",
             isPresented: Binding(
@@ -91,6 +106,12 @@ struct ContentView: View {
                     model.isImporting = true
                 } label: {
                     Label("Load Schedule", systemImage: "square.and.arrow.down")
+                }
+
+                Button {
+                    model.isChoosingMusicFolder = true
+                } label: {
+                    Label("Grant Music Folder Access", systemImage: "folder.badge.gearshape")
                 }
             }
 

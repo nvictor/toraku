@@ -17,6 +17,7 @@ final class TrackTimerViewModel: ObservableObject {
     @Published private(set) var scheduleError: String?
     @Published private(set) var isMusicMuted = false
     @Published var isImporting = false
+    @Published var isChoosingMusicFolder = false
     @Published var eventStartDate: Date {
         didSet {
             refreshPausedElapsedFromEventStart()
@@ -30,8 +31,11 @@ final class TrackTimerViewModel: ObservableObject {
     private let now: () -> Date
     private let persistedScheduleURL: URL
     private let persistedScheduleSourceDirectoryURL: URL
+    private let persistedMusicFolderBookmarkURL: URL
     private let musicController: SegmentMusicControlling
     private var scheduleSourceDirectory: URL?
+    private var musicFolderAccessURL: URL?
+    private var activeMusicAccess: (url: URL, didStartAccessing: Bool)?
     private var currentMusicSegmentID: UUID?
     private let musicFadeDuration: TimeInterval = 2
 
@@ -47,6 +51,9 @@ final class TrackTimerViewModel: ObservableObject {
         persistedScheduleSourceDirectoryURL = self.persistedScheduleURL
             .deletingLastPathComponent()
             .appendingPathComponent("ScheduleSourceDirectory.txt")
+        persistedMusicFolderBookmarkURL = self.persistedScheduleURL
+            .deletingLastPathComponent()
+            .appendingPathComponent("MusicFolder.bookmark")
         self.musicController = musicController ?? SegmentMusicController()
         let initialDate = now()
         eventStartDate = initialDate
@@ -205,6 +212,26 @@ final class TrackTimerViewModel: ObservableObject {
         }
     }
 
+    func grantMusicFolderAccess(from url: URL) {
+        let didStartAccessing = url.startAccessingSecurityScopedResource()
+        defer {
+            if didStartAccessing {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        do {
+            scheduleSourceDirectory = url
+            musicFolderAccessURL = url
+            try persistScheduleSourceDirectory(url)
+            try persistMusicFolderBookmark(url)
+            scheduleError = nil
+            synchronizeMusicWithCurrentSegment()
+        } catch {
+            scheduleError = "Toraku could not save access to that music folder. \(error.localizedDescription)"
+        }
+    }
+
     func replaceSchedule(with segments: [TrackSegment]) throws {
         let builtTimeline = try ScheduleLoader.buildTimeline(from: segments)
         self.segments = segments
@@ -326,8 +353,13 @@ final class TrackTimerViewModel: ObservableObject {
 
     private func loadStartupSchedule() {
         do {
+            musicFolderAccessURL = try loadPersistedMusicFolderBookmark()
             if let persistedSegments = try loadPersistedSchedule() {
-                scheduleSourceDirectory = try loadPersistedScheduleSourceDirectory()
+                if let musicFolderAccessURL {
+                    scheduleSourceDirectory = musicFolderAccessURL
+                } else {
+                    scheduleSourceDirectory = try loadPersistedScheduleSourceDirectory()
+                }
                 try replaceSchedule(with: persistedSegments)
             } else {
                 loadSampleSchedule()
@@ -401,6 +433,7 @@ final class TrackTimerViewModel: ObservableObject {
 
         do {
             currentMusicSegmentID = currentSegment.id
+            beginMusicSecurityScopedAccess(for: musicURL)
             try musicController.play(
                 url: musicURL,
                 fadeInDuration: musicFadeDuration,
@@ -409,13 +442,50 @@ final class TrackTimerViewModel: ObservableObject {
             )
         } catch {
             stopMusic(fadeOutDuration: 0)
-            scheduleError = "Toraku could not play music for \"\(currentSegment.segment.title)\". \(error.localizedDescription)"
+            scheduleError = musicPlaybackErrorMessage(for: currentSegment, error: error)
         }
     }
 
     private func stopMusic(fadeOutDuration: TimeInterval) {
         currentMusicSegmentID = nil
         musicController.stop(fadeOutDuration: fadeOutDuration)
+        endMusicSecurityScopedAccess()
+    }
+
+    private func beginMusicSecurityScopedAccess(for musicURL: URL) {
+        endMusicSecurityScopedAccess()
+
+        guard let accessURL = musicFolderAccessURL, musicURL.isDescendant(of: accessURL) else {
+            return
+        }
+
+        activeMusicAccess = (
+            url: accessURL,
+            didStartAccessing: accessURL.startAccessingSecurityScopedResource()
+        )
+    }
+
+    private func endMusicSecurityScopedAccess() {
+        guard let activeMusicAccess else {
+            return
+        }
+
+        if activeMusicAccess.didStartAccessing {
+            activeMusicAccess.url.stopAccessingSecurityScopedResource()
+        }
+
+        self.activeMusicAccess = nil
+    }
+
+    private func musicPlaybackErrorMessage(for segment: ScheduledSegment, error: Error) -> String {
+        let nsError = error as NSError
+        if nsError.code == -54 {
+            return """
+            Toraku could not play music for "\(segment.segment.title)" because macOS blocked access to the MP3 file. Open Settings and use "Grant Music Folder Access" for the folder that contains the schedule and music files.
+            """
+        }
+
+        return "Toraku could not play music for \"\(segment.segment.title)\". \(error.localizedDescription)"
     }
 
     private func persistScheduleSourceDirectory(_ url: URL) throws {
@@ -436,6 +506,34 @@ final class TrackTimerViewModel: ObservableObject {
         }
 
         return URL(fileURLWithPath: path, isDirectory: true)
+    }
+
+    private func persistMusicFolderBookmark(_ url: URL) throws {
+        let directory = persistedMusicFolderBookmarkURL.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let data = try url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
+        try data.write(to: persistedMusicFolderBookmarkURL, options: .atomic)
+    }
+
+    private func loadPersistedMusicFolderBookmark() throws -> URL? {
+        guard FileManager.default.fileExists(atPath: persistedMusicFolderBookmarkURL.path) else {
+            return nil
+        }
+
+        let data = try Data(contentsOf: persistedMusicFolderBookmarkURL)
+        var isStale = false
+        let url = try URL(
+            resolvingBookmarkData: data,
+            options: [.withSecurityScope],
+            relativeTo: nil,
+            bookmarkDataIsStale: &isStale
+        )
+
+        if isStale {
+            try persistMusicFolderBookmark(url)
+        }
+
+        return url
     }
 
     private static func defaultPersistedScheduleURL() -> URL {
