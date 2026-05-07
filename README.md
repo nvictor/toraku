@@ -2,7 +2,7 @@
 
 Simple time tracking for events
 
-![Toraku Screenshot](docs/demo.png)
+<img src="docs/demo.png" alt="Toraku Screenshot" width="420">
 
 ## Example Event
 
