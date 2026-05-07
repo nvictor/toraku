@@ -17,6 +17,17 @@ struct ControlsView: View {
             .frame(minWidth: 92)
 
             Button {
+                model.reset()
+            } label: {
+                Label("Reset", systemImage: "arrow.counterclockwise")
+            }
+            .buttonStyle(.bordered)
+            .labelStyle(.iconOnly)
+            .controlSize(.large)
+            .disabled(model.timeline.isEmpty)
+            .help("Reset")
+
+            Button {
                 model.toggleMusicMuted()
             } label: {
                 Label(muteTitle, systemImage: muteImage)

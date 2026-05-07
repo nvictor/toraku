@@ -16,8 +16,6 @@ final class TrackTimerViewModel: ObservableObject {
     @Published private(set) var pausedElapsed: TimeInterval = 0
     @Published private(set) var scheduleError: String?
     @Published private(set) var isMusicMuted = false
-    @Published var isImporting = false
-    @Published var isChoosingMusicFolder = false
     @Published var eventStartDate: Date {
         didSet {
             refreshPausedElapsedFromEventStart()
@@ -278,6 +276,14 @@ final class TrackTimerViewModel: ObservableObject {
         stopMusic(fadeOutDuration: musicFadeDuration)
         setElapsed(offset)
         synchronizeMusicWithCurrentSegment()
+    }
+
+    func reset() {
+        pausedElapsed = 0
+        playbackState = .stopped
+        eventStartDate = now()
+        tickDate = eventStartDate
+        stopMusic(fadeOutDuration: musicFadeDuration)
     }
 
     func toggleMusicMuted() {

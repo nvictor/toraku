@@ -276,6 +276,31 @@ final class TorakuTests: XCTestCase {
         XCTAssertEqual(model.playbackState, .playing)
     }
 
+    func testResetStopsPlaybackAndReturnsToScheduleStart() throws {
+        var currentDate = Date(timeIntervalSinceReferenceDate: 10 * 60 * 60)
+        let musicController = MockSegmentMusicController()
+        let model = TrackTimerViewModel(
+            loadSample: false,
+            startTimer: false,
+            musicController: musicController
+        ) {
+            currentDate
+        }
+        try model.replaceSchedule(with: [
+            TrackSegment(title: "A", durationMinutes: 5, type: .intro, music: "/tmp/a.mp3")
+        ])
+
+        model.play()
+        currentDate = currentDate.addingTimeInterval(90)
+
+        model.reset()
+
+        XCTAssertEqual(model.playbackState, .stopped)
+        XCTAssertEqual(model.elapsed, 0, accuracy: 0.001)
+        XCTAssertEqual(model.currentSegment?.segment.title, "A")
+        XCTAssertTrue(musicController.stopCalls.contains(2))
+    }
+
     func testResolvesRelativeMusicPathFromImportedScheduleDirectory() throws {
         let persistenceURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

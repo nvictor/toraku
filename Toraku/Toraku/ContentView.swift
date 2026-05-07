@@ -4,6 +4,8 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @StateObject private var model = TrackTimerViewModel()
     @State private var isSettingsPresented = false
+    @State private var fileImportKind: FileImportKind = .schedule
+    @State private var isFileImporterPresented = false
 
     var body: some View {
         NavigationStack {
@@ -41,8 +43,8 @@ struct ContentView: View {
         .frame(minWidth: 360, idealWidth: 420, minHeight: 560, idealHeight: 720)
         .background(WindowConfigurator())
         .fileImporter(
-            isPresented: $model.isImporting,
-            allowedContentTypes: [.json],
+            isPresented: $isFileImporterPresented,
+            allowedContentTypes: fileImportKind.allowedContentTypes,
             allowsMultipleSelection: false
         ) { result in
             switch result {
@@ -50,22 +52,13 @@ struct ContentView: View {
                 guard let url = urls.first else {
                     return
                 }
-                model.importSchedule(from: url)
-            case .failure(let error):
-                model.showError(error.localizedDescription)
-            }
-        }
-        .fileImporter(
-            isPresented: $model.isChoosingMusicFolder,
-            allowedContentTypes: [.folder],
-            allowsMultipleSelection: false
-        ) { result in
-            switch result {
-            case .success(let urls):
-                guard let url = urls.first else {
-                    return
+
+                switch fileImportKind {
+                case .schedule:
+                    model.importSchedule(from: url)
+                case .musicFolder:
+                    model.grantMusicFolderAccess(from: url)
                 }
-                model.grantMusicFolderAccess(from: url)
             case .failure(let error):
                 model.showError(error.localizedDescription)
             }
@@ -103,13 +96,15 @@ struct ContentView: View {
                 }
 
                 Button {
-                    model.isImporting = true
+                    fileImportKind = .schedule
+                    isFileImporterPresented = true
                 } label: {
                     Label("Load Schedule", systemImage: "square.and.arrow.down")
                 }
 
                 Button {
-                    model.isChoosingMusicFolder = true
+                    fileImportKind = .musicFolder
+                    isFileImporterPresented = true
                 } label: {
                     Label("Grant Music Folder Access", systemImage: "folder.badge.gearshape")
                 }
@@ -154,6 +149,20 @@ struct ContentView: View {
             .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: 640)
+    }
+}
+
+private enum FileImportKind {
+    case schedule
+    case musicFolder
+
+    var allowedContentTypes: [UTType] {
+        switch self {
+        case .schedule:
+            [.json]
+        case .musicFolder:
+            [.folder]
+        }
     }
 }
 
